@@ -20,7 +20,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 
-// $Revision: 9580 $ $Date:: 2018-08-02 #$ $Author: serge $
+// $Revision: 9591 $ $Date:: 2018-08-03 #$ $Author: serge $
 
 #ifndef SIMPLE_VOIP_WRAP__WRAP_H
 #define SIMPLE_VOIP_WRAP__WRAP_H
@@ -28,11 +28,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #include <list>                             // std::list
 #include <mutex>                            // std::mutex
 #include <map>                              // std::map
-#include <set>                              // std::set
 
+#include "scheduler/i_scheduler.h"          // IScheduler
 #include "simple_voip/objects.h"            // simple_voip::InitiateCallRequest
 #include "simple_voip/i_simple_voip.h"      // simple_voip::ISimpleVoip
 #include "simple_voip/i_simple_voip_callback.h" // ISimpleVoipCallback
+#include "utils/i_request_id_gen.h"         // utils::IRequestIdGen
 
 #include "namespace_lib.h"              // namespace simple_voip_wrap {
 
@@ -50,6 +51,7 @@ public:
             unsigned int                        log_id,
             simple_voip::ISimpleVoip            * voips,
             simple_voip::ISimpleVoipCallback    * callback,
+            utils::IRequestIdGen                * req_id_gen,
             std::string                         * error_msg );
 
     // interface ISimpleVoip
@@ -61,23 +63,48 @@ public:
     // interface threcon::IControllable
     bool shutdown();
 
+    void release_message( const simple_voip::ForwardObject* obj );
+    void release_message( const simple_voip::CallbackObject* obj );
+
 private:
 
-    typedef std::set<uint32_t>              SetReqIds;
+    enum class type_e
+    {
+        PlayFileRequest,
+        PlayFileStopRequest,
+        RecordFileRequest,
+        RecordFileStopRequest
+    };
+
+    typedef struct Param
+    {
+        type_e      type;
+        double      duration;
+        std::string filename;
+    };
+
+    typedef std::map<uint32_t, Param>      MapReqIdToParam;
 
 private:
 
     // simple_voip::ISimpleVoip interface
-    void handle_InitiateCallRequest( const simple_voip::ForwardObject * req );
-    void handle_DropRequest( const simple_voip::ForwardObject * req );
+    void handle_PlayFileRequest( const simple_voip::ForwardObject * req );
+    void handle_RecordFileRequest( const simple_voip::ForwardObject * req );
 
     // interface ISimpleVoipCallback
-    void handle_InitiateCallResponse( const simple_voip::CallbackObject * obj );
     void handle_RejectResponse( const simple_voip::CallbackObject * obj );
     void handle_ErrorResponse( const simple_voip::CallbackObject * obj );
-    void handle_DropResponse( const simple_voip::CallbackObject * obj );
-    void handle_ConnectionLost( const simple_voip::CallbackObject * obj );
-    void handle_Failed( const simple_voip::CallbackObject * obj );
+    void handle_PlayFileResponse( const simple_voip::CallbackObject * obj );
+    void handle_PlayFileStopResponse( const simple_voip::CallbackObject * obj );
+    void handle_RecordFileResponse( const simple_voip::CallbackObject * obj );
+    void handle_RecordFileStopResponse( const simple_voip::CallbackObject * obj );
+
+    void handle_error( type_e type, uint32_t req_id, uint32_t errorcode, const std::string & error_msg );
+
+    void handle_generate_play_stop( uint32_t call_id );
+    void handle_generate_record_stop( uint32_t call_id );
+
+    double get_duration( const std::string & filename );
 
 private:
     mutable std::mutex          mutex_;
@@ -86,11 +113,9 @@ private:
 
     simple_voip::ISimpleVoip            * voips_;
     simple_voip::ISimpleVoipCallback    * callback_;
+    utils::IRequestIdGen                * req_id_gen_;
 
-    SetReqIds                   play_file_req_ids_;
-    SetReqIds                   play_file_stop_req_ids_;
-    SetReqIds                   record_file_req_ids_;
-    SetReqIds                   record_file_stop_req_ids_;
+    MapReqIdToParam             map_req_to_param_;
 };
 
 } // namespace simple_voip_wrap

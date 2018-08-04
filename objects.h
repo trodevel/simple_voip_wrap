@@ -20,7 +20,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 
-// $Revision: 9577 $ $Date:: 2018-08-02 #$ $Author: serge $
+// $Revision: 9590 $ $Date:: 2018-08-03 #$ $Author: serge $
 
 #ifndef SIMPLE_VOIP_WRAP__OBJECTS_H
 #define SIMPLE_VOIP_WRAP__OBJECTS_H
@@ -47,10 +47,12 @@ struct PlayFileErrorResponse: public simple_voip::ErrorResponse
 
 struct PlayFileStopped: public CallbackObject
 {
+    uint32_t    req_id;
 };
 
 struct RecordFileRequest: public simple_voip::RecordFileRequest
 {
+    double  duration;
 };
 
 struct RecordFileResponse: public simple_voip::RecordFileResponse
@@ -63,6 +65,7 @@ struct RecordFileErrorResponse: public simple_voip::ErrorResponse
 
 struct RecordFileStopped: public CallbackObject
 {
+    uint32_t    req_id;
 };
 
 } // namespace wrap

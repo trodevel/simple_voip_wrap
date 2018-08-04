@@ -20,7 +20,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 
-// $Revision: 9580 $ $Date:: 2018-08-02 #$ $Author: serge $
+// $Revision: 9591 $ $Date:: 2018-08-03 #$ $Author: serge $
 
 #include "wrap.h"                       // self
 
@@ -31,6 +31,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #include "utils/mutex_helper.h"         // MUTEX_SCOPE_LOCK
 #include "utils/dummy_logger.h"         // dummy_log
 #include "utils/assert.h"               // ASSERT
+#include "scheduler/onetime_job_aux.h"  // create_and_insert_one_time_job
+
+#include "simple_voip/object_factory.h" // create_play_file_request
+
+#include "object_factory.h"             // create_PlayFileErrorResponse
+#include "objects.h"                    // PlayFileRequest
 
 #define MODULENAME      "Wrap"
 
@@ -38,7 +44,8 @@ namespace simple_voip_wrap {
 
 Wrap::Wrap():
     log_id_( 0 ),
-    voips_( nullptr ), callback_( nullptr )
+    voips_( nullptr ), callback_( nullptr ),
+    req_id_gen_( nullptr )
 {
 }
 
@@ -50,6 +57,7 @@ bool Wrap::init(
         unsigned int                        log_id,
         simple_voip::ISimpleVoip            * voips,
         simple_voip::ISimpleVoipCallback    * callback,
+        utils::IRequestIdGen                * req_id_gen,
         std::string                         * error_msg )
 {
     if( voips == nullptr )
@@ -69,6 +77,7 @@ bool Wrap::init(
     log_id_     = log_id;
     voips_      = voips;
     callback_   = callback;
+    req_id_gen_ = req_id_gen;
 
     return true;
 }
@@ -81,12 +90,12 @@ void Wrap::consume( const simple_voip::ForwardObject* obj )
 
     typedef void (Type::*PPMF)( const simple_voip::ForwardObject * r );
 
-#define HANDLER_MAP_ENTRY(_v)       { typeid( simple_voip::_v ),            & Type::handle_##_v }
+#define HANDLER_MAP_ENTRY(_v)       { typeid( simple_voip::wrap::_v ),            & Type::handle_##_v }
 
     static const std::unordered_map<std::type_index, PPMF> funcs =
     {
-        HANDLER_MAP_ENTRY( InitiateCallRequest ),
-        HANDLER_MAP_ENTRY( DropRequest ),
+        HANDLER_MAP_ENTRY( PlayFileRequest ),
+        HANDLER_MAP_ENTRY( RecordFileRequest ),
     };
 
 #undef HANDLER_MAP_ENTRY
@@ -96,6 +105,8 @@ void Wrap::consume( const simple_voip::ForwardObject* obj )
     if( it != funcs.end() )
     {
         (this->*it->second)( obj );
+
+        release_message( obj );
     }
     else
     {
@@ -115,12 +126,12 @@ void Wrap::consume( const simple_voip::CallbackObject* obj )
 
     static const std::unordered_map<std::type_index, PPMF> funcs =
     {
-        HANDLER_MAP_ENTRY( InitiateCallResponse ),
         HANDLER_MAP_ENTRY( ErrorResponse ),
         HANDLER_MAP_ENTRY( RejectResponse ),
-        HANDLER_MAP_ENTRY( DropResponse ),
-        HANDLER_MAP_ENTRY( ConnectionLost ),
-        HANDLER_MAP_ENTRY( Failed ),
+        HANDLER_MAP_ENTRY( PlayFileResponse ),
+        HANDLER_MAP_ENTRY( PlayFileStopResponse ),
+        HANDLER_MAP_ENTRY( RecordFileResponse ),
+        HANDLER_MAP_ENTRY( RecordFileStopResponse ),
     };
 
 #undef HANDLER_MAP_ENTRY
@@ -144,113 +155,158 @@ bool Wrap::shutdown()
     return true;
 }
 
-void Wrap::handle_InitiateCallRequest( const simple_voip::ForwardObject * rreq )
+void Wrap::release_message( const simple_voip::ForwardObject* obj )
 {
-    auto * req = dynamic_cast< const simple_voip::InitiateCallRequest *>( rreq );
+    delete obj;
+}
+
+void Wrap::release_message( const simple_voip::CallbackObject* obj )
+{
+    delete obj;
+}
+
+void Wrap::handle_PlayFileRequest( const simple_voip::ForwardObject * rreq )
+{
+    auto * req = dynamic_cast< const simple_voip::wrap::PlayFileRequest *>( rreq );
+
+    Param p = { type_e::PlayFileRequest, 0, req->filename };
+
+    auto b = map_req_to_param_.insert( std::make_pair( req->req_id, p ) ).second;
+
+    ASSERT( b );
+
+    auto req2 = simple_voip::create_play_file_request( req->req_id, req->call_id, req->filename );
+
+    voips_->consume( req2 );
+}
+
+void Wrap::handle_RecordFileRequest( const simple_voip::ForwardObject * rreq )
+{
+    auto * req = dynamic_cast< const simple_voip::wrap::RecordFileRequest *>( rreq );
 
     // private: no mutex lock
 
-    log_stat();
+    Param p = { type_e::RecordFileRequest, req->duration, req->filename };
 
-    if( get_num_of_activities() >= cfg_.max_active_calls )
-    {
-        request_queue_.push_back( req );
+    auto b = map_req_to_param_.insert( std::make_pair( req->req_id, p ) ).second;
 
-        dummy_log_debug( log_id_, "insert_job: inserted job %u", req->req_id );
+    ASSERT( b );
 
-        log_stat();
+    auto req2 = simple_voip::create_record_file_request( req->req_id, req->call_id, req->filename );
 
-        return;
-    }
-
-    process( req );
+    voips_->consume( req2 );
 }
 
-void Wrap::handle_DropRequest( const simple_voip::ForwardObject * rreq )
+void Wrap::handle_error( type_e type, uint32_t req_id, uint32_t errorcode, const std::string & error_msg )
 {
-    auto * req = dynamic_cast< const simple_voip::DropRequest *>( rreq );
-
-    if( active_call_ids_.count( req->call_id ) == 0 )
+    switch( type )
     {
-        dummy_log_warn( log_id_, "unknown call id %u", req->call_id );
+    case type_e::PlayFileRequest:
+    {
+        auto * resp = simple_voip::wrap::create_PlayFileErrorResponse( req_id, errorcode, error_msg );
 
-        voips_->consume( req );
-
-        return;
+        callback_->consume( resp );
     }
+        break;
 
-    auto _b = map_drop_req_id_to_call_id_.insert( std::make_pair( req->req_id, req->call_id ) ).second;
+    case type_e::PlayFileStopRequest:   // silently consumed
+        break;
 
-    ASSERT( _b );
+    case type_e::RecordFileRequest:
+    {
+        auto * resp = simple_voip::wrap::create_RecordFileErrorResponse( req_id, errorcode, error_msg );
 
-    voips_->consume( req );
+        callback_->consume( resp );
+    }
+        break;
+
+    case type_e::RecordFileStopRequest: // silently consumed
+        break;
+
+    default:
+        break;
+    }
 }
 
 // ISimpleVoipCallback interface
-void Wrap::handle_InitiateCallResponse( const simple_voip::CallbackObject * oobj )
-{
-    auto * obj = dynamic_cast< const simple_voip::InitiateCallResponse *>( oobj );
-
-    dummy_log_trace( log_id_, "initiated call: %u", obj->call_id );
-
-    auto it = active_request_ids_.find( obj->req_id );
-
-    if( it == active_request_ids_.end() )
-    {
-        dummy_log_error( log_id_, "unknown call id %u", obj->call_id );
-        return;
-    }
-
-    active_request_ids_.erase( it );
-
-    auto b = active_call_ids_.insert( obj->call_id ).second;
-
-    if( b == false )
-    {
-        dummy_log_error( log_id_, "cannot insert call id %u - already exists", obj->call_id );
-
-        ASSERT( 0 );
-
-        return;
-    }
-
-    dummy_log_debug( log_id_, "call id %u - active", obj->call_id );
-
-    log_stat();
-}
-
 void Wrap::handle_RejectResponse( const simple_voip::CallbackObject * oobj )
 {
     auto * obj = dynamic_cast< const simple_voip::RejectResponse *>( oobj );
 
-    auto it = active_request_ids_.find( obj->req_id );
+    auto it = map_req_to_param_.find( obj->req_id );
 
-    if( it == active_request_ids_.end() )
+    if( it == map_req_to_param_.end() )
     {
-        erase_failed_drop_request( obj->req_id );
+        callback_->consume( obj );
         return;
     }
 
-    active_request_ids_.erase( it );
+    auto & p = it->second;
 
-    process_jobs();
+    handle_error( p.type, obj->req_id, 0, "rejected" );
+
+    map_req_to_param_.erase( it );
+
+    release_message( obj );
 }
 
 void Wrap::handle_ErrorResponse( const simple_voip::CallbackObject * oobj )
 {
     auto * obj = dynamic_cast< const simple_voip::ErrorResponse *>( oobj );
 
-    auto it = active_request_ids_.find( obj->req_id );
+    auto it = map_req_to_param_.find( obj->req_id );
 
-    if( it == active_request_ids_.end() )
+    if( it == map_req_to_param_.end() )
     {
-        erase_failed_drop_request( obj->req_id );
+        callback_->consume( obj );
         return;
     }
 
-    active_request_ids_.erase( it );
+    auto & p = it->second;
 
-    process_jobs();
+    handle_error( p.type, obj->req_id, obj->errorcode, obj->descr );
+
+    map_req_to_param_.erase( it );
+
+    release_message( obj );
+}
+
+void Wrap::handle_PlayFileResponse( const simple_voip::CallbackObject * oobj )
+{
+    auto * obj = dynamic_cast< const simple_voip::PlayFileResponse *>( oobj );
+
+    auto it = map_req_to_param_.find( obj->req_id );
+
+    if( it == map_req_to_param_.end() )
+    {
+        callback_->consume( obj );
+        return;
+    }
+
+    auto & p = it->second;
+
+    auto duration = get_duration( p.filename );
+
+    std::string error_msg;
+
+    scheduler::job_id_t sched_job_id;
+
+    auto b = scheduler::create_and_insert_one_time_job(
+            & sched_job_id,
+            & error_msg,
+            * scheduler_,
+            "timer_job",
+            exec_time,
+            std::bind( &Wrap::handle_generate_play_stop, this, 0 ) );
+
+    if( b == false )
+    {
+        dummy_log_error( log_id_, "cannot set timer: %s", error_msg.c_str() );
+    }
+    else
+    {
+        dummy_log_debug( log_id_, "scheduled execution at: %u", exec_time );
+    }
 }
 
 } // namespace simple_voip_wrap
