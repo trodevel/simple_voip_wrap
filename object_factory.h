@@ -20,7 +20,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 
-// $Revision: 9590 $ $Date:: 2018-08-03 #$ $Author: serge $
+// $Revision: 9601 $ $Date:: 2018-08-06 #$ $Author: serge $
 
 #ifndef SIMPLE_VOIP_WRAP__OBJECT_FACTORY_H
 #define SIMPLE_VOIP_WRAP__OBJECT_FACTORY_H
@@ -65,9 +65,9 @@ inline PlayFileErrorResponse *create_PlayFileErrorResponse( uint32_t req_id, uin
     return res;
 }
 
-inline PlayFileStopped *create_PlayFileStopped( uint32_t req_id, uint32_t call_id )
+inline PlayFileStopped *create_PlayFileStopped( uint32_t req_id )
 {
-    auto * res = create_message_t<PlayFileStopped>( call_id );
+    auto * res = new PlayFileStopped;
 
     init_req_id( res, req_id );
 
@@ -108,9 +108,9 @@ inline RecordFileErrorResponse *create_RecordFileErrorResponse( uint32_t req_id,
     return res;
 }
 
-inline RecordFileStopped *create_RecordFileStopped( uint32_t req_id, uint32_t call_id )
+inline RecordFileStopped *create_RecordFileStopped( uint32_t req_id )
 {
-    auto * res = create_message_t<RecordFileStopped>( call_id );
+    auto * res = new RecordFileStopped;
 
     init_req_id( res, req_id );
 

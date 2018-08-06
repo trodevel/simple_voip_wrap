@@ -20,7 +20,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 
-// $Revision: 9591 $ $Date:: 2018-08-03 #$ $Author: serge $
+// $Revision: 9603 $ $Date:: 2018-08-06 #$ $Author: serge $
 
 #ifndef SIMPLE_VOIP_WRAP__WRAP_H
 #define SIMPLE_VOIP_WRAP__WRAP_H
@@ -51,6 +51,7 @@ public:
             unsigned int                        log_id,
             simple_voip::ISimpleVoip            * voips,
             simple_voip::ISimpleVoipCallback    * callback,
+            scheduler::IScheduler               * scheduler,
             utils::IRequestIdGen                * req_id_gen,
             std::string                         * error_msg );
 
@@ -79,8 +80,24 @@ private:
     typedef struct Param
     {
         type_e      type;
+        uint32_t    req_id;
+        uint32_t    call_id;
         double      duration;
         std::string filename;
+
+        void init(
+            type_e              type,
+            uint32_t            req_id,
+            uint32_t            call_id,
+            double              duration,
+            const std::string   & filename )
+        {
+            this->type      = type;
+            this->req_id    = req_id;
+            this->call_id   = call_id;
+            this->duration  = duration;
+            this->filename  = filename;
+        }
     };
 
     typedef std::map<uint32_t, Param>      MapReqIdToParam;
@@ -99,10 +116,12 @@ private:
     void handle_RecordFileResponse( const simple_voip::CallbackObject * obj );
     void handle_RecordFileStopResponse( const simple_voip::CallbackObject * obj );
 
-    void handle_error( type_e type, uint32_t req_id, uint32_t errorcode, const std::string & error_msg );
+    void handle_error( type_e type, uint32_t req_id, uint32_t orig_req_id, uint32_t errorcode, const std::string & error_msg );
 
-    void handle_generate_play_stop( uint32_t call_id );
-    void handle_generate_record_stop( uint32_t call_id );
+    void schedule_stop_event( uint32_t req_id, uint32_t call_id, double duration, bool is_record );
+
+    void handle_generate_play_stop( uint32_t start_req_id, uint32_t call_id );
+    void handle_generate_record_stop( uint32_t start_req_id, uint32_t call_id );
 
     double get_duration( const std::string & filename );
 
@@ -113,6 +132,7 @@ private:
 
     simple_voip::ISimpleVoip            * voips_;
     simple_voip::ISimpleVoipCallback    * callback_;
+    scheduler::IScheduler               * scheduler_;
     utils::IRequestIdGen                * req_id_gen_;
 
     MapReqIdToParam             map_req_to_param_;
