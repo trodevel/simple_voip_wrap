@@ -19,8 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-
-// $Revision: 9601 $ $Date:: 2018-08-06 #$ $Author: serge $
+// $Revision: 9621 $ $Date:: 2018-08-07 #$ $Author: serge $
 
 #ifndef SIMPLE_VOIP_WRAP__OBJECT_FACTORY_H
 #define SIMPLE_VOIP_WRAP__OBJECT_FACTORY_H

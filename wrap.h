@@ -19,23 +19,21 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-
-// $Revision: 9603 $ $Date:: 2018-08-06 #$ $Author: serge $
+// $Revision: 9621 $ $Date:: 2018-08-07 #$ $Author: serge $
 
 #ifndef SIMPLE_VOIP_WRAP__WRAP_H
 #define SIMPLE_VOIP_WRAP__WRAP_H
 
-#include <list>                             // std::list
 #include <mutex>                            // std::mutex
 #include <map>                              // std::map
 
 #include "scheduler/i_scheduler.h"          // IScheduler
-#include "simple_voip/objects.h"            // simple_voip::InitiateCallRequest
+#include "objects.h"                        // simple_voip::InitiateCallRequest
 #include "simple_voip/i_simple_voip.h"      // simple_voip::ISimpleVoip
 #include "simple_voip/i_simple_voip_callback.h" // ISimpleVoipCallback
 #include "utils/i_request_id_gen.h"         // utils::IRequestIdGen
 
-#include "namespace_lib.h"              // namespace simple_voip_wrap {
+#include "i_get_duration.h"                 // IGetDuration
 
 namespace simple_voip_wrap {
 
@@ -53,6 +51,7 @@ public:
             simple_voip::ISimpleVoipCallback    * callback,
             scheduler::IScheduler               * scheduler,
             utils::IRequestIdGen                * req_id_gen,
+            IGetDuration                        * gd,
             std::string                         * error_msg );
 
     // interface ISimpleVoip
@@ -77,23 +76,23 @@ private:
         RecordFileStopRequest
     };
 
-    typedef struct Param
+    struct Param
     {
         type_e      type;
-        uint32_t    req_id;
+        uint32_t    start_req_id;
         uint32_t    call_id;
         double      duration;
         std::string filename;
 
         void init(
             type_e              type,
-            uint32_t            req_id,
+            uint32_t            start_req_id,
             uint32_t            call_id,
             double              duration,
             const std::string   & filename )
         {
             this->type      = type;
-            this->req_id    = req_id;
+            this->start_req_id  = start_req_id;
             this->call_id   = call_id;
             this->duration  = duration;
             this->filename  = filename;
@@ -104,17 +103,21 @@ private:
 
 private:
 
+    uint32_t get_resp_id( const simple_voip::CallbackObject * obj );
+
     // simple_voip::ISimpleVoip interface
     void handle_PlayFileRequest( const simple_voip::ForwardObject * req );
     void handle_RecordFileRequest( const simple_voip::ForwardObject * req );
 
+    void handle( const simple_voip::CallbackObject * obj, const Param & p );
+
     // interface ISimpleVoipCallback
-    void handle_RejectResponse( const simple_voip::CallbackObject * obj );
-    void handle_ErrorResponse( const simple_voip::CallbackObject * obj );
-    void handle_PlayFileResponse( const simple_voip::CallbackObject * obj );
-    void handle_PlayFileStopResponse( const simple_voip::CallbackObject * obj );
-    void handle_RecordFileResponse( const simple_voip::CallbackObject * obj );
-    void handle_RecordFileStopResponse( const simple_voip::CallbackObject * obj );
+    void handle_RejectResponse( const simple_voip::CallbackObject * obj, const Param & p );
+    void handle_ErrorResponse( const simple_voip::CallbackObject * obj, const Param & p );
+    void handle_PlayFileResponse( const simple_voip::CallbackObject * obj, const Param & p );
+    void handle_PlayFileStopResponse( const simple_voip::CallbackObject * obj, const Param & p );
+    void handle_RecordFileResponse( const simple_voip::CallbackObject * obj, const Param & p );
+    void handle_RecordFileStopResponse( const simple_voip::CallbackObject * obj, const Param & p );
 
     void handle_error( type_e type, uint32_t req_id, uint32_t orig_req_id, uint32_t errorcode, const std::string & error_msg );
 
@@ -122,8 +125,6 @@ private:
 
     void handle_generate_play_stop( uint32_t start_req_id, uint32_t call_id );
     void handle_generate_record_stop( uint32_t start_req_id, uint32_t call_id );
-
-    double get_duration( const std::string & filename );
 
 private:
     mutable std::mutex          mutex_;
@@ -134,6 +135,7 @@ private:
     simple_voip::ISimpleVoipCallback    * callback_;
     scheduler::IScheduler               * scheduler_;
     utils::IRequestIdGen                * req_id_gen_;
+    IGetDuration                        * gd_;
 
     MapReqIdToParam             map_req_to_param_;
 };

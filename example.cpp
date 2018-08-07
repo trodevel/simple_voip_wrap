@@ -19,7 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-// $Revision: 9581 $ $Date:: 2018-08-02 #$ $Author: serge $
+// $Revision: 9618 $ $Date:: 2018-08-07 #$ $Author: serge $
 
 #include <iostream>         // cout
 #include <typeinfo>
@@ -27,7 +27,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #include <atomic>           // std::atomic
 #include <vector>           // std::vector
 
-#include "wrap.h"                               // simple_voip_wrap::Wrap
 #include "simple_voip/objects.h"
 #include "simple_voip/str_helper.h"
 #include "simple_voip/object_factory.h"         // simple_voip::create_initiate_call_request
@@ -39,18 +38,21 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #include "utils/dummy_logger.h"              // dummy_log_set_log_level
 #include "scheduler/scheduler.h"             // Scheduler
 
+#include "wrap.h"                               // simple_voip_wrap::Wrap
+#include "object_factory.h"                     // simple_voip::wrap::create_PlayFileRequest
+
 class Callback: virtual public simple_voip::ISimpleVoipCallback
 {
 public:
     Callback():
-        calman_( nullptr ),
+        voips_( nullptr ),
         last_req_id_( 0 )
     {
     }
 
     void init( simple_voip::ISimpleVoip * wrap )
     {
-        calman_ = wrap;
+        voips_ = wrap;
     }
 
     // interface ISimpleVoipCallback
@@ -67,7 +69,7 @@ public:
         std::cout << "call <party>" << std::endl;
         std::cout << "drop <call_id>" << std::endl;
         std::cout << "play <call_id> <file>" << std::endl;
-        std::cout << "stop_play <call_id>" << std::endl;
+        std::cout << "rec <call_id> <file> <duration>" << std::endl;
 
         std::string input;
 
@@ -107,7 +109,7 @@ private:
                 std::string s;
                 stream >> s;
 
-                calman_->consume( simple_voip::create_initiate_call_request( last_req_id_, s ) );
+                voips_->consume( simple_voip::create_initiate_call_request( last_req_id_, s ) );
             }
             else if( cmd == "drop" )
             {
@@ -116,7 +118,7 @@ private:
                 uint32_t call_id;
                 stream >> call_id;
 
-                calman_->consume( simple_voip::create_drop_request( last_req_id_, call_id ) );
+                voips_->consume( simple_voip::create_drop_request( last_req_id_, call_id ) );
             }
             else if( cmd == "play" )
             {
@@ -126,16 +128,18 @@ private:
                 std::string filename;
                 stream >> call_id >> filename;
 
-                calman_->consume( simple_voip::create_play_file_request( last_req_id_, call_id, filename ) );
+                voips_->consume( simple_voip::wrap::create_PlayFileRequest( last_req_id_, call_id, filename ) );
             }
-            else if( cmd == "stop_play" )
+            else if( cmd == "rec" )
             {
                 last_req_id_++;
 
                 uint32_t call_id;
-                stream >> call_id;
+                std::string filename;
+                double duration;
+                stream >> call_id >> filename >> duration;
 
-                calman_->consume( simple_voip::create_play_file_stop_request( last_req_id_, call_id ) );
+                voips_->consume( simple_voip::wrap::create_RecordFileRequest( last_req_id_, call_id, filename, duration ) );
             }
             else
                 std::cout << "ERROR: unknown command '" << cmd << "'" << std::endl;
@@ -148,7 +152,7 @@ private:
     }
 
 private:
-    simple_voip::ISimpleVoip    * calman_;
+    simple_voip::ISimpleVoip    * voips_;
     uint32_t                    last_req_id_;
 };
 
@@ -182,12 +186,12 @@ int main( int argc, char **argv )
 
     std::string error_msg;
 
-    auto log_id_calman      = dummy_logger::register_module( "Wrap" );
+    auto log_id_wrap        = dummy_logger::register_module( "Wrap" );
     auto log_id_dummy       = dummy_logger::register_module( "SimpleVoipDummy" );
     auto log_id_call        = dummy_logger::register_module( "Call" );
     auto log_id_sched       = dummy_logger::register_module( "Scheduler" );
 
-    dummy_logger::set_log_level( log_id_calman,     log_levels_log4j::TRACE );
+    dummy_logger::set_log_level( log_id_wrap,       log_levels_log4j::TRACE );
     dummy_logger::set_log_level( log_id_dummy,      log_levels_log4j::INFO );
     dummy_logger::set_log_level( log_id_call,       log_levels_log4j::TRACE );
     dummy_logger::set_log_level( log_id_sched,      log_levels_log4j::TRACE );
@@ -204,7 +208,7 @@ int main( int argc, char **argv )
     }
 
     {
-        bool b = wrap.init( log_id_calman, & dialer, & test, & error_msg );
+        bool b = wrap.init( log_id_wrap, & dialer, & test, & sched, nullptr, nullptr, & error_msg );
         if( !b )
         {
             std::cout << "cannot initialize Wrap: " << error_msg << std::endl;
