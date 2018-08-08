@@ -19,7 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-// $Revision: 9618 $ $Date:: 2018-08-07 #$ $Author: serge $
+// $Revision: 9640 $ $Date:: 2018-08-08 #$ $Author: serge $
 
 #include <iostream>         // cout
 #include <typeinfo>
@@ -35,24 +35,38 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #include "simple_voip_dummy/dummy.h"            // simple_voip_dummy::Dummy
 #include "simple_voip_dummy/init_config.h"      // simple_voip_dummy::init_config
 
-#include "utils/dummy_logger.h"              // dummy_log_set_log_level
-#include "scheduler/scheduler.h"             // Scheduler
+#include "utils/dummy_logger.h"                 // dummy_log_set_log_level
+#include "utils/request_id_gen.h"               // RequestIdGen
+#include "scheduler/scheduler.h"                // Scheduler
+#include "wav_tools/get_wav_duration.h"         // get_wav_duration()
 
 #include "wrap.h"                               // simple_voip_wrap::Wrap
 #include "object_factory.h"                     // simple_voip::wrap::create_PlayFileRequest
+#include "i_get_duration.h"                     // IGetDuration
+
+struct DurationGetter: virtual public simple_voip_wrap::IGetDuration
+{
+    virtual ~DurationGetter() {}
+
+    double get_duration( const std::string & filename ) override
+    {
+        return wav_tools::get_wav_duration( filename );
+    }
+};
 
 class Callback: virtual public simple_voip::ISimpleVoipCallback
 {
 public:
     Callback():
         voips_( nullptr ),
-        last_req_id_( 0 )
+        req_id_gen_( nullptr )
     {
     }
 
-    void init( simple_voip::ISimpleVoip * wrap )
+    void init( simple_voip::ISimpleVoip * wrap, utils::IRequestIdGen * req_id_gen )
     {
-        voips_ = wrap;
+        voips_      = wrap;
+        req_id_gen_ = req_id_gen;
     }
 
     // interface ISimpleVoipCallback
@@ -104,42 +118,42 @@ private:
             }
             else if( cmd == "call" )
             {
-                last_req_id_++;
+                auto req_id = req_id_gen_->get_next_request_id();
 
                 std::string s;
                 stream >> s;
 
-                voips_->consume( simple_voip::create_initiate_call_request( last_req_id_, s ) );
+                voips_->consume( simple_voip::create_initiate_call_request( req_id, s ) );
             }
             else if( cmd == "drop" )
             {
-                last_req_id_++;
+                auto req_id = req_id_gen_->get_next_request_id();
 
                 uint32_t call_id;
                 stream >> call_id;
 
-                voips_->consume( simple_voip::create_drop_request( last_req_id_, call_id ) );
+                voips_->consume( simple_voip::create_drop_request( req_id, call_id ) );
             }
             else if( cmd == "play" )
             {
-                last_req_id_++;
+                auto req_id = req_id_gen_->get_next_request_id();
 
                 uint32_t call_id;
                 std::string filename;
                 stream >> call_id >> filename;
 
-                voips_->consume( simple_voip::wrap::create_PlayFileRequest( last_req_id_, call_id, filename ) );
+                voips_->consume( simple_voip::wrap::create_PlayFileRequest( req_id, call_id, filename ) );
             }
             else if( cmd == "rec" )
             {
-                last_req_id_++;
+                auto req_id = req_id_gen_->get_next_request_id();
 
                 uint32_t call_id;
                 std::string filename;
                 double duration;
                 stream >> call_id >> filename >> duration;
 
-                voips_->consume( simple_voip::wrap::create_RecordFileRequest( last_req_id_, call_id, filename, duration ) );
+                voips_->consume( simple_voip::wrap::create_RecordFileRequest( req_id, call_id, filename, duration ) );
             }
             else
                 std::cout << "ERROR: unknown command '" << cmd << "'" << std::endl;
@@ -153,7 +167,7 @@ private:
 
 private:
     simple_voip::ISimpleVoip    * voips_;
-    uint32_t                    last_req_id_;
+    utils::IRequestIdGen        * req_id_gen_;
 };
 
 int main( int argc, char **argv )
@@ -163,6 +177,8 @@ int main( int argc, char **argv )
     simple_voip_dummy::Dummy        dialer;
     scheduler::Scheduler            sched( scheduler::Duration( std::chrono::milliseconds( 1 ) ) );
     simple_voip_wrap::Wrap          wrap;
+    utils::RequestIdGen             req_id_gen;
+    DurationGetter                  dg;
     Callback test;
 
     simple_voip_dummy::Config config;
@@ -194,11 +210,11 @@ int main( int argc, char **argv )
     dummy_logger::set_log_level( log_id_wrap,       log_levels_log4j::TRACE );
     dummy_logger::set_log_level( log_id_dummy,      log_levels_log4j::INFO );
     dummy_logger::set_log_level( log_id_call,       log_levels_log4j::TRACE );
-    dummy_logger::set_log_level( log_id_sched,      log_levels_log4j::TRACE );
+    dummy_logger::set_log_level( log_id_sched,      log_levels_log4j::INFO );
 
     sched.init_log( log_id_sched );
 
-    test.init( & wrap );
+    test.init( & wrap, & req_id_gen );
 
     bool b = dialer.init( log_id_dummy, log_id_call, config, & wrap, & sched, & error_msg );
     if( b == false )
@@ -208,7 +224,7 @@ int main( int argc, char **argv )
     }
 
     {
-        bool b = wrap.init( log_id_wrap, & dialer, & test, & sched, nullptr, nullptr, & error_msg );
+        bool b = wrap.init( log_id_wrap, & dialer, & test, & sched, & req_id_gen, & dg, & error_msg );
         if( !b )
         {
             std::cout << "cannot initialize Wrap: " << error_msg << std::endl;

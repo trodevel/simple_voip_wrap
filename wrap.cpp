@@ -19,7 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-// $Revision: 9621 $ $Date:: 2018-08-07 #$ $Author: serge $
+// $Revision: 9641 $ $Date:: 2018-08-08 #$ $Author: serge $
 
 #include "wrap.h"                       // self
 
@@ -306,17 +306,15 @@ void Wrap::handle_ErrorResponse( const simple_voip::CallbackObject * oobj, const
 
 void Wrap::handle_PlayFileResponse( const simple_voip::CallbackObject * oobj, const Param & p )
 {
-    auto * obj = dynamic_cast< const simple_voip::PlayFileResponse *>( oobj );
-
     auto duration = gd_->get_duration( p.filename );
+
+    dummy_log_trace( log_id_, "handle(): PlayFileResponse: filename %s, duration %.2f sec", p.filename.c_str(), duration );
 
     schedule_stop_event( p.start_req_id, p.call_id, duration, false );
 }
 
 void Wrap::handle_PlayFileStopResponse( const simple_voip::CallbackObject * oobj, const Param & p )
 {
-    auto * obj = dynamic_cast< const simple_voip::PlayFileStopResponse *>( oobj );
-
     auto * resp = simple_voip::wrap::create_PlayFileStopped( p.start_req_id );
 
     callback_->consume( resp );
@@ -324,15 +322,11 @@ void Wrap::handle_PlayFileStopResponse( const simple_voip::CallbackObject * oobj
 
 void Wrap::handle_RecordFileResponse( const simple_voip::CallbackObject * oobj, const Param & p )
 {
-    auto * obj = dynamic_cast< const simple_voip::RecordFileResponse *>( oobj );
-
     schedule_stop_event( p.start_req_id, p.call_id, p.duration, true );
 }
 
 void Wrap::handle_RecordFileStopResponse( const simple_voip::CallbackObject * oobj, const Param & p )
 {
-    auto * obj = dynamic_cast< const simple_voip::RecordFileStopResponse *>( oobj );
-
     auto * resp = simple_voip::wrap::create_RecordFileStopped( p.start_req_id );
 
     callback_->consume( resp );
@@ -340,7 +334,7 @@ void Wrap::handle_RecordFileStopResponse( const simple_voip::CallbackObject * oo
 
 void Wrap::schedule_stop_event( uint32_t req_id, uint32_t call_id, double duration, bool is_record )
 {
-    dummy_log_trace( log_id_, "schedule_stop_event: req_id %u, call_id %u, duration %.1g, is_record %u", req_id, call_id, duration, (int)is_record );
+    dummy_log_trace( log_id_, "schedule_stop_event: req_id %u, call_id %u, duration %.2f sec, is_record %u", req_id, call_id, duration, (int)is_record );
 
     std::string error_msg;
 
