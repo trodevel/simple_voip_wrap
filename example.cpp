@@ -19,7 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-// $Revision: 9640 $ $Date:: 2018-08-08 #$ $Author: serge $
+// $Revision: 9646 $ $Date:: 2018-08-09 #$ $Author: serge $
 
 #include <iostream>         // cout
 #include <typeinfo>
@@ -153,7 +153,15 @@ private:
                 double duration;
                 stream >> call_id >> filename >> duration;
 
-                voips_->consume( simple_voip::wrap::create_RecordFileRequest( req_id, call_id, filename, duration ) );
+                if( duration > 0 )
+                {
+                    voips_->consume( simple_voip::wrap::create_RecordFileRequest( req_id, call_id, filename, duration ) );
+                }
+                else
+                {
+                    std::cout << "ERROR: duration is zero" << std::endl;
+                }
+
             }
             else
                 std::cout << "ERROR: unknown command '" << cmd << "'" << std::endl;

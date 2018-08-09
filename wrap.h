@@ -19,7 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-// $Revision: 9621 $ $Date:: 2018-08-07 #$ $Author: serge $
+// $Revision: 9643 $ $Date:: 2018-08-09 #$ $Author: serge $
 
 #ifndef SIMPLE_VOIP_WRAP__WRAP_H
 #define SIMPLE_VOIP_WRAP__WRAP_H
@@ -121,7 +121,7 @@ private:
 
     void handle_error( type_e type, uint32_t req_id, uint32_t orig_req_id, uint32_t errorcode, const std::string & error_msg );
 
-    void schedule_stop_event( uint32_t req_id, uint32_t call_id, double duration, bool is_record );
+    bool schedule_stop_event( uint32_t req_id, uint32_t call_id, double duration, bool is_record );
 
     void handle_generate_play_stop( uint32_t start_req_id, uint32_t call_id );
     void handle_generate_record_stop( uint32_t start_req_id, uint32_t call_id );

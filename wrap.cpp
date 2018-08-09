@@ -19,7 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-// $Revision: 9641 $ $Date:: 2018-08-08 #$ $Author: serge $
+// $Revision: 9643 $ $Date:: 2018-08-09 #$ $Author: serge $
 
 #include "wrap.h"                       // self
 
@@ -310,7 +310,14 @@ void Wrap::handle_PlayFileResponse( const simple_voip::CallbackObject * oobj, co
 
     dummy_log_trace( log_id_, "handle(): PlayFileResponse: filename %s, duration %.2f sec", p.filename.c_str(), duration );
 
-    schedule_stop_event( p.start_req_id, p.call_id, duration, false );
+    auto b = schedule_stop_event( p.start_req_id, p.call_id, duration, false );
+
+    if( b == false )
+    {
+        auto * resp = simple_voip::wrap::create_PlayFileStopped( p.start_req_id );
+
+        callback_->consume( resp );
+    }
 }
 
 void Wrap::handle_PlayFileStopResponse( const simple_voip::CallbackObject * oobj, const Param & p )
@@ -322,7 +329,14 @@ void Wrap::handle_PlayFileStopResponse( const simple_voip::CallbackObject * oobj
 
 void Wrap::handle_RecordFileResponse( const simple_voip::CallbackObject * oobj, const Param & p )
 {
-    schedule_stop_event( p.start_req_id, p.call_id, p.duration, true );
+    auto b = schedule_stop_event( p.start_req_id, p.call_id, p.duration, true );
+
+    if( b == false )
+    {
+        auto * resp = simple_voip::wrap::create_RecordFileStopped( p.start_req_id );
+
+        callback_->consume( resp );
+    }
 }
 
 void Wrap::handle_RecordFileStopResponse( const simple_voip::CallbackObject * oobj, const Param & p )
@@ -332,7 +346,7 @@ void Wrap::handle_RecordFileStopResponse( const simple_voip::CallbackObject * oo
     callback_->consume( resp );
 }
 
-void Wrap::schedule_stop_event( uint32_t req_id, uint32_t call_id, double duration, bool is_record )
+bool Wrap::schedule_stop_event( uint32_t req_id, uint32_t call_id, double duration, bool is_record )
 {
     dummy_log_trace( log_id_, "schedule_stop_event: req_id %u, call_id %u, duration %.2f sec, is_record %u", req_id, call_id, duration, (int)is_record );
 
@@ -360,6 +374,8 @@ void Wrap::schedule_stop_event( uint32_t req_id, uint32_t call_id, double durati
     {
         dummy_log_debug( log_id_, "scheduled execution in: %u sec", duration );
     }
+
+    return b;
 }
 
 void Wrap::handle_generate_play_stop( uint32_t start_req_id, uint32_t call_id )
