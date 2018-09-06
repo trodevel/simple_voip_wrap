@@ -19,7 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-// $Revision: 9646 $ $Date:: 2018-08-09 #$ $Author: serge $
+// $Revision: 9712 $ $Date:: 2018-09-06 #$ $Author: serge $
 
 #include <iostream>         // cout
 #include <typeinfo>
@@ -43,6 +43,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #include "wrap.h"                               // simple_voip_wrap::Wrap
 #include "object_factory.h"                     // simple_voip::wrap::create_PlayFileRequest
 #include "i_get_duration.h"                     // IGetDuration
+#include "str_helper.h"                         // to_string()
 
 struct DurationGetter: virtual public simple_voip_wrap::IGetDuration
 {
@@ -72,7 +73,7 @@ public:
     // interface ISimpleVoipCallback
     void consume( const simple_voip::CallbackObject * req )
     {
-        std::cout << "got " << *req << std::endl;
+        std::cout << "got " << simple_voip_wrap::StrHelper::to_string( *req ) << std::endl;
 
         delete req;
     }

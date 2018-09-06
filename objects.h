@@ -19,7 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-// $Revision: 9621 $ $Date:: 2018-08-07 #$ $Author: serge $
+// $Revision: 9706 $ $Date:: 2018-09-05 #$ $Author: serge $
 
 #ifndef SIMPLE_VOIP_WRAP__OBJECTS_H
 #define SIMPLE_VOIP_WRAP__OBJECTS_H
@@ -46,6 +46,7 @@ struct PlayFileErrorResponse: public simple_voip::ErrorResponse
 
 struct PlayFileStopped: public CallbackObject
 {
+    uint32_t    call_id;
     uint32_t    req_id;
 };
 
@@ -64,6 +65,7 @@ struct RecordFileErrorResponse: public simple_voip::ErrorResponse
 
 struct RecordFileStopped: public CallbackObject
 {
+    uint32_t    call_id;
     uint32_t    req_id;
 };
 

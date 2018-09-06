@@ -19,7 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-// $Revision: 9612 $ $Date:: 2018-08-07 #$ $Author: serge $
+// $Revision: 9708 $ $Date:: 2018-09-06 #$ $Author: serge $
 
 #include "str_helper.h"                 // self
 
@@ -61,7 +61,7 @@ std::ostream & StrHelper::write( std::ostream & os, const simple_voip::IObject &
 
         auto & m = dynamic_cast<const simple_voip::wrap::PlayFileStopped&>( o );
 
-        os << " " << m.req_id;
+        os << " " << m.call_id << " " << m.req_id;
     }
     else if( typeid( o ) == typeid( simple_voip::wrap::RecordFileRequest ) )
     {
@@ -93,7 +93,7 @@ std::ostream & StrHelper::write( std::ostream & os, const simple_voip::IObject &
 
         auto & m = dynamic_cast<const simple_voip::wrap::RecordFileStopped&>( o );
 
-        os << " " << m.req_id;
+        os << " " << m.call_id << " " << m.req_id;
     }
     else
     {

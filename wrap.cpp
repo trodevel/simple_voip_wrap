@@ -19,7 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-// $Revision: 9643 $ $Date:: 2018-08-09 #$ $Author: serge $
+// $Revision: 9711 $ $Date:: 2018-09-06 #$ $Author: serge $
 
 #include "wrap.h"                       // self
 
@@ -248,7 +248,7 @@ uint32_t Wrap::get_resp_id( const simple_voip::CallbackObject * obj )
     return 0;
 }
 
-void Wrap::handle_error( type_e type, uint32_t req_id, uint32_t orig_req_id, uint32_t errorcode, const std::string & error_msg )
+void Wrap::handle_error( type_e type, uint32_t req_id, uint32_t orig_req_id, uint32_t call_id, uint32_t errorcode, const std::string & error_msg )
 {
     switch( type )
     {
@@ -262,7 +262,7 @@ void Wrap::handle_error( type_e type, uint32_t req_id, uint32_t orig_req_id, uin
 
     case type_e::PlayFileStopRequest:   // despite the error return a correct response
     {
-        auto * resp = simple_voip::wrap::create_PlayFileStopped( orig_req_id );
+        auto * resp = simple_voip::wrap::create_PlayFileStopped( call_id, orig_req_id );
 
         callback_->consume( resp );
     }
@@ -278,7 +278,7 @@ void Wrap::handle_error( type_e type, uint32_t req_id, uint32_t orig_req_id, uin
 
     case type_e::RecordFileStopRequest: // despite the error return a correct response
     {
-        auto * resp = simple_voip::wrap::create_RecordFileStopped( orig_req_id );
+        auto * resp = simple_voip::wrap::create_RecordFileStopped( call_id, orig_req_id );
 
         callback_->consume( resp );
     }
@@ -294,14 +294,14 @@ void Wrap::handle_RejectResponse( const simple_voip::CallbackObject * oobj, cons
 {
     auto * obj = dynamic_cast< const simple_voip::RejectResponse *>( oobj );
 
-    handle_error( p.type, obj->req_id, p.start_req_id, 0, "rejected" );
+    handle_error( p.type, obj->req_id, p.start_req_id, p.call_id, 0, "rejected" );
 }
 
 void Wrap::handle_ErrorResponse( const simple_voip::CallbackObject * oobj, const Param & p )
 {
     auto * obj = dynamic_cast< const simple_voip::ErrorResponse *>( oobj );
 
-    handle_error( p.type, obj->req_id, p.start_req_id, obj->errorcode, obj->descr );
+    handle_error( p.type, obj->req_id, p.start_req_id, p.call_id, obj->errorcode, obj->descr );
 }
 
 void Wrap::handle_PlayFileResponse( const simple_voip::CallbackObject * oobj, const Param & p )
@@ -314,7 +314,7 @@ void Wrap::handle_PlayFileResponse( const simple_voip::CallbackObject * oobj, co
 
     if( b == false )
     {
-        auto * resp = simple_voip::wrap::create_PlayFileStopped( p.start_req_id );
+        auto * resp = simple_voip::wrap::create_PlayFileStopped( p.call_id, p.start_req_id );
 
         callback_->consume( resp );
     }
@@ -322,7 +322,7 @@ void Wrap::handle_PlayFileResponse( const simple_voip::CallbackObject * oobj, co
 
 void Wrap::handle_PlayFileStopResponse( const simple_voip::CallbackObject * oobj, const Param & p )
 {
-    auto * resp = simple_voip::wrap::create_PlayFileStopped( p.start_req_id );
+    auto * resp = simple_voip::wrap::create_PlayFileStopped( p.call_id, p.start_req_id );
 
     callback_->consume( resp );
 }
@@ -333,7 +333,7 @@ void Wrap::handle_RecordFileResponse( const simple_voip::CallbackObject * oobj, 
 
     if( b == false )
     {
-        auto * resp = simple_voip::wrap::create_RecordFileStopped( p.start_req_id );
+        auto * resp = simple_voip::wrap::create_RecordFileStopped( p.call_id, p.start_req_id );
 
         callback_->consume( resp );
     }
@@ -341,7 +341,7 @@ void Wrap::handle_RecordFileResponse( const simple_voip::CallbackObject * oobj, 
 
 void Wrap::handle_RecordFileStopResponse( const simple_voip::CallbackObject * oobj, const Param & p )
 {
-    auto * resp = simple_voip::wrap::create_RecordFileStopped( p.start_req_id );
+    auto * resp = simple_voip::wrap::create_RecordFileStopped( p.call_id, p.start_req_id );
 
     callback_->consume( resp );
 }
@@ -372,7 +372,7 @@ bool Wrap::schedule_stop_event( uint32_t req_id, uint32_t call_id, double durati
     }
     else
     {
-        dummy_log_debug( log_id_, "scheduled execution in: %u sec", duration );
+        dummy_log_debug( log_id_, "scheduled execution in: %.02f sec", duration );
     }
 
     return b;
