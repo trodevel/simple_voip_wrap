@@ -19,7 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-// $Revision: 9711 $ $Date:: 2018-09-06 #$ $Author: serge $
+// $Revision: 9748 $ $Date:: 2018-09-21 #$ $Author: serge $
 
 #include "wrap.h"                       // self
 
@@ -126,13 +126,19 @@ void Wrap::consume( const simple_voip::CallbackObject* obj )
 
     auto req_id = get_resp_id( obj );
 
+    dummy_log_trace( log_id_, "consume: %s, req_id %u", typeid( *obj ).name(), req_id );
+
     auto it = map_req_to_param_.find( req_id );
 
     if( it == map_req_to_param_.end() )
     {
+        dummy_log_debug( log_id_, "consume: req_id %u - is not found in the request list", req_id );
+
         callback_->consume( obj );
         return;
     }
+
+    dummy_log_debug( log_id_, "consume: req_id %u - is found in the request list", req_id );
 
     auto & p = it->second;
 
@@ -254,7 +260,7 @@ void Wrap::handle_error( type_e type, uint32_t req_id, uint32_t orig_req_id, uin
     {
     case type_e::PlayFileRequest:
     {
-        auto * resp = simple_voip::wrap::create_PlayFileErrorResponse( req_id, errorcode, error_msg );
+        auto * resp = simple_voip::wrap::create_PlayFileStopped( call_id, req_id, errorcode, error_msg );
 
         callback_->consume( resp );
     }
@@ -262,7 +268,7 @@ void Wrap::handle_error( type_e type, uint32_t req_id, uint32_t orig_req_id, uin
 
     case type_e::PlayFileStopRequest:   // despite the error return a correct response
     {
-        auto * resp = simple_voip::wrap::create_PlayFileStopped( call_id, orig_req_id );
+        auto * resp = simple_voip::wrap::create_PlayFileStopped( call_id, orig_req_id, 0, "" );
 
         callback_->consume( resp );
     }
@@ -270,7 +276,7 @@ void Wrap::handle_error( type_e type, uint32_t req_id, uint32_t orig_req_id, uin
 
     case type_e::RecordFileRequest:
     {
-        auto * resp = simple_voip::wrap::create_RecordFileErrorResponse( req_id, errorcode, error_msg );
+        auto * resp = simple_voip::wrap::create_RecordFileStopped( call_id, req_id, errorcode, error_msg );
 
         callback_->consume( resp );
     }
@@ -278,7 +284,7 @@ void Wrap::handle_error( type_e type, uint32_t req_id, uint32_t orig_req_id, uin
 
     case type_e::RecordFileStopRequest: // despite the error return a correct response
     {
-        auto * resp = simple_voip::wrap::create_RecordFileStopped( call_id, orig_req_id );
+        auto * resp = simple_voip::wrap::create_RecordFileStopped( call_id, orig_req_id, 0, "" );
 
         callback_->consume( resp );
     }
@@ -310,11 +316,13 @@ void Wrap::handle_PlayFileResponse( const simple_voip::CallbackObject * oobj, co
 
     dummy_log_trace( log_id_, "handle(): PlayFileResponse: filename %s, duration %.2f sec", p.filename.c_str(), duration );
 
-    auto b = schedule_stop_event( p.start_req_id, p.call_id, duration, false );
+    std::string error_msg;
+
+    auto b = schedule_stop_event( p.start_req_id, p.call_id, duration, false, & error_msg );
 
     if( b == false )
     {
-        auto * resp = simple_voip::wrap::create_PlayFileStopped( p.call_id, p.start_req_id );
+        auto * resp = simple_voip::wrap::create_PlayFileStopped( p.call_id, p.start_req_id, simple_voip::wrap::ErrorCodes::SCHEDULER_ERROR, error_msg );
 
         callback_->consume( resp );
     }
@@ -322,18 +330,20 @@ void Wrap::handle_PlayFileResponse( const simple_voip::CallbackObject * oobj, co
 
 void Wrap::handle_PlayFileStopResponse( const simple_voip::CallbackObject * oobj, const Param & p )
 {
-    auto * resp = simple_voip::wrap::create_PlayFileStopped( p.call_id, p.start_req_id );
+    auto * resp = simple_voip::wrap::create_PlayFileStopped( p.call_id, p.start_req_id, 0, "" );
 
     callback_->consume( resp );
 }
 
 void Wrap::handle_RecordFileResponse( const simple_voip::CallbackObject * oobj, const Param & p )
 {
-    auto b = schedule_stop_event( p.start_req_id, p.call_id, p.duration, true );
+    std::string error_msg;
+
+    auto b = schedule_stop_event( p.start_req_id, p.call_id, p.duration, true, & error_msg );
 
     if( b == false )
     {
-        auto * resp = simple_voip::wrap::create_RecordFileStopped( p.call_id, p.start_req_id );
+        auto * resp = simple_voip::wrap::create_RecordFileStopped( p.call_id, p.start_req_id, simple_voip::wrap::ErrorCodes::SCHEDULER_ERROR, error_msg );
 
         callback_->consume( resp );
     }
@@ -341,16 +351,14 @@ void Wrap::handle_RecordFileResponse( const simple_voip::CallbackObject * oobj, 
 
 void Wrap::handle_RecordFileStopResponse( const simple_voip::CallbackObject * oobj, const Param & p )
 {
-    auto * resp = simple_voip::wrap::create_RecordFileStopped( p.call_id, p.start_req_id );
+    auto * resp = simple_voip::wrap::create_RecordFileStopped( p.call_id, p.start_req_id, 0, "" );
 
     callback_->consume( resp );
 }
 
-bool Wrap::schedule_stop_event( uint32_t req_id, uint32_t call_id, double duration, bool is_record )
+bool Wrap::schedule_stop_event( uint32_t req_id, uint32_t call_id, double duration, bool is_record, std::string * error_msg )
 {
     dummy_log_trace( log_id_, "schedule_stop_event: req_id %u, call_id %u, duration %.2f sec, is_record %u", req_id, call_id, duration, (int)is_record );
-
-    std::string error_msg;
 
     scheduler::job_id_t sched_job_id;
 
@@ -360,7 +368,7 @@ bool Wrap::schedule_stop_event( uint32_t req_id, uint32_t call_id, double durati
 
     auto b = scheduler::create_and_insert_timeout_job(
             & sched_job_id,
-            & error_msg,
+            error_msg,
             * scheduler_,
             "timer_job",
             scheduler::Duration( duration ),
@@ -368,7 +376,7 @@ bool Wrap::schedule_stop_event( uint32_t req_id, uint32_t call_id, double durati
 
     if( b == false )
     {
-        dummy_log_error( log_id_, "cannot set timer: %s", error_msg.c_str() );
+        dummy_log_error( log_id_, "cannot set timer: %s", error_msg->c_str() );
     }
     else
     {

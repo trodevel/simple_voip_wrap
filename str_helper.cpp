@@ -19,7 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-// $Revision: 9708 $ $Date:: 2018-09-06 #$ $Author: serge $
+// $Revision: 9747 $ $Date:: 2018-09-21 #$ $Author: serge $
 
 #include "str_helper.h"                 // self
 
@@ -39,29 +39,13 @@ std::ostream & StrHelper::write( std::ostream & os, const simple_voip::IObject &
 
         os << " " << m.req_id << " " << m.call_id << " " << m.filename;
     }
-    else if( typeid( o ) == typeid( simple_voip::wrap::PlayFileResponse ) )
-    {
-        os << typeid( o ).name();
-
-        auto & m = dynamic_cast<const simple_voip::wrap::PlayFileResponse&>( o );
-
-        os << " " << m.req_id;
-    }
-    else if( typeid( o ) == typeid( simple_voip::wrap::PlayFileErrorResponse ) )
-    {
-        os << typeid( o ).name();
-
-        auto & m = dynamic_cast<const simple_voip::wrap::PlayFileErrorResponse&>( o );
-
-        os << " " << m.req_id << " " << m.errorcode << " " << m.descr;
-    }
     else if( typeid( o ) == typeid( simple_voip::wrap::PlayFileStopped ) )
     {
         os << typeid( o ).name();
 
         auto & m = dynamic_cast<const simple_voip::wrap::PlayFileStopped&>( o );
 
-        os << " " << m.call_id << " " << m.req_id;
+        os << " " << m.req_id << " " << m.call_id << " " << m.errorcode << " " << m.error_msg;
     }
     else if( typeid( o ) == typeid( simple_voip::wrap::RecordFileRequest ) )
     {
@@ -71,29 +55,13 @@ std::ostream & StrHelper::write( std::ostream & os, const simple_voip::IObject &
 
         os << " " << m.req_id << " " << m.call_id << " " << m.filename;
     }
-    else if( typeid( o ) == typeid( simple_voip::wrap::RecordFileResponse ) )
-    {
-        os << typeid( o ).name();
-
-        auto & m = dynamic_cast<const simple_voip::wrap::RecordFileResponse&>( o );
-
-        os << " " << m.req_id;
-    }
-    else if( typeid( o ) == typeid( simple_voip::wrap::RecordFileErrorResponse ) )
-    {
-        os << typeid( o ).name();
-
-        auto & m = dynamic_cast<const simple_voip::wrap::RecordFileErrorResponse&>( o );
-
-        os << " " << m.req_id << " " << m.errorcode << " " << m.descr;
-    }
     else if( typeid( o ) == typeid( simple_voip::wrap::RecordFileStopped ) )
     {
         os << typeid( o ).name();
 
         auto & m = dynamic_cast<const simple_voip::wrap::RecordFileStopped&>( o );
 
-        os << " " << m.call_id << " " << m.req_id;
+        os << " " << m.req_id << " " << m.call_id << " " << m.errorcode << " " << m.error_msg;
     }
     else
     {

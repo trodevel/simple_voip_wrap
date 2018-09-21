@@ -19,7 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-// $Revision: 9707 $ $Date:: 2018-09-06 #$ $Author: serge $
+// $Revision: 9747 $ $Date:: 2018-09-21 #$ $Author: serge $
 
 #ifndef SIMPLE_VOIP_WRAP__OBJECT_FACTORY_H
 #define SIMPLE_VOIP_WRAP__OBJECT_FACTORY_H
@@ -43,34 +43,15 @@ inline PlayFileRequest *create_PlayFileRequest( uint32_t req_id, uint32_t call_i
     return res;
 }
 
-inline PlayFileResponse *create_PlayFileResponse( uint32_t req_id )
-{
-    auto * res = new PlayFileResponse;
-
-    init_req_id( res, req_id );
-
-    return res;
-}
-
-inline PlayFileErrorResponse *create_PlayFileErrorResponse( uint32_t req_id, uint32_t errorcode, const std::string & descr )
-{
-    auto * res = new PlayFileErrorResponse;
-
-    init_req_id( res, req_id );
-
-    res->errorcode  = errorcode;
-    res->descr      = descr;
-
-    return res;
-}
-
-inline PlayFileStopped *create_PlayFileStopped( uint32_t call_id, uint32_t req_id )
+inline PlayFileStopped *create_PlayFileStopped( uint32_t call_id, uint32_t req_id, uint32_t errorcode, const std::string & error_msg )
 {
     auto * res = new PlayFileStopped;
 
     init_req_id( res, req_id );
 
     res->call_id    = call_id;
+    res->errorcode  = errorcode;
+    res->error_msg  = error_msg;
 
     return res;
 }
@@ -88,34 +69,15 @@ inline RecordFileRequest *create_RecordFileRequest( uint32_t req_id, uint32_t ca
     return res;
 }
 
-inline RecordFileResponse *create_RecordFileResponse( uint32_t req_id )
-{
-    auto * res = new RecordFileResponse;
-
-    init_req_id( res, req_id );
-
-    return res;
-}
-
-inline RecordFileErrorResponse *create_RecordFileErrorResponse( uint32_t req_id, uint32_t errorcode, const std::string & descr )
-{
-    auto * res = new RecordFileErrorResponse;
-
-    init_req_id( res, req_id );
-
-    res->errorcode  = errorcode;
-    res->descr      = descr;
-
-    return res;
-}
-
-inline RecordFileStopped *create_RecordFileStopped( uint32_t call_id, uint32_t req_id )
+inline RecordFileStopped *create_RecordFileStopped( uint32_t call_id, uint32_t req_id, uint32_t errorcode, const std::string & error_msg )
 {
     auto * res = new RecordFileStopped;
 
     init_req_id( res, req_id );
 
     res->call_id    = call_id;
+    res->errorcode  = errorcode;
+    res->error_msg  = error_msg;
 
     return res;
 }

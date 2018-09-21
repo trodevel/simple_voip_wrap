@@ -19,7 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-// $Revision: 9706 $ $Date:: 2018-09-05 #$ $Author: serge $
+// $Revision: 9747 $ $Date:: 2018-09-21 #$ $Author: serge $
 
 #ifndef SIMPLE_VOIP_WRAP__OBJECTS_H
 #define SIMPLE_VOIP_WRAP__OBJECTS_H
@@ -30,17 +30,14 @@ namespace simple_voip {
 
 namespace wrap {
 
+enum ErrorCodes
+{
+    SCHEDULER_ERROR = 1,
+};
+
 // ******************* IN-CALL REQUESTS *******************
 
 struct PlayFileRequest: public simple_voip::PlayFileRequest
-{
-};
-
-struct PlayFileResponse: public simple_voip::PlayFileResponse
-{
-};
-
-struct PlayFileErrorResponse: public simple_voip::ErrorResponse
 {
 };
 
@@ -48,6 +45,8 @@ struct PlayFileStopped: public CallbackObject
 {
     uint32_t    call_id;
     uint32_t    req_id;
+    uint32_t    errorcode;
+    std::string error_msg;
 };
 
 struct RecordFileRequest: public simple_voip::RecordFileRequest
@@ -55,18 +54,13 @@ struct RecordFileRequest: public simple_voip::RecordFileRequest
     double  duration;
 };
 
-struct RecordFileResponse: public simple_voip::RecordFileResponse
-{
-};
-
-struct RecordFileErrorResponse: public simple_voip::ErrorResponse
-{
-};
 
 struct RecordFileStopped: public CallbackObject
 {
     uint32_t    call_id;
     uint32_t    req_id;
+    uint32_t    errorcode;
+    std::string error_msg;
 };
 
 } // namespace wrap
