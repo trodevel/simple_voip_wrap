@@ -19,7 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-// $Revision: 9748 $ $Date:: 2018-09-21 #$ $Author: serge $
+// $Revision: 10613 $ $Date:: 2019-03-10 #$ $Author: serge $
 
 #include "wrap.h"                       // self
 
@@ -29,7 +29,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 #include "utils/mutex_helper.h"         // MUTEX_SCOPE_LOCK
 #include "utils/dummy_logger.h"         // dummy_log
-#include "utils/assert.h"               // ASSERT
+#include "utils/utils_assert.h"               // ASSERT
 #include "scheduler/timeout_job_aux.h"  // create_and_insert_timeout_job
 
 #include "simple_voip/object_factory.h" // create_play_file_request
