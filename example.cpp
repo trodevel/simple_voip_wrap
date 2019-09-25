@@ -19,7 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-// $Revision: 9712 $ $Date:: 2018-09-06 #$ $Author: serge $
+// $Revision: 12038 $ $Date:: 2019-09-25 #$ $Author: serge $
 
 #include <iostream>         // cout
 #include <typeinfo>
@@ -181,7 +181,7 @@ private:
 
 int main( int argc, char **argv )
 {
-    dummy_logger::set_log_level( log_levels_log4j::DEBUG );
+    dummy_logger::set_log_level( log_levels_log4j::Debug );
 
     simple_voip_dummy::Dummy        dialer;
     scheduler::Scheduler            sched( scheduler::Duration( std::chrono::milliseconds( 1 ) ) );
